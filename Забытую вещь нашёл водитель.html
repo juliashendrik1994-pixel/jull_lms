@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Симулятор чата: пишет водитель</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#E5D6F9; --card:#FFFFFF; --purple:#7F30E3; --purple-soft:#F1E8FD;
+    --ink:#263238; --grey:#455A64; --line:#E0E0E0; --soft:#FAFAFA;
+    --pink:#F90479; --pink-soft:#FFE6F2; --green:#94E330; --green-soft:#EEFBDD; --green-ink:#2F5A00;
+    --orange:#FE5F00; --orange-soft:#FFF0E6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:15px;line-height:1.45}
+  button{font:inherit;color:inherit}
+  .wrap{max-width:1040px;margin:0 auto;padding:20px 16px 28px}
+
+  .head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .head h1{margin:0;font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .head .tag{background:var(--purple);color:#fff;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600}
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px;list-style:none;padding:0}
+  .steps li{background:rgba(255,255,255,.55);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--grey);display:flex;gap:8px;align-items:center;min-width:0}
+  .steps li .n{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#fff;font-weight:700;font-size:12px;color:var(--grey)}
+  .steps li .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .steps li.now{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 0 0 2px var(--purple) inset}
+  .steps li.now .n{background:var(--purple);color:#fff}
+  .steps li.done{background:#fff;color:var(--ink)}
+  .steps li.done .n{background:var(--green);color:var(--green-ink)}
+  .steps li.done.retry .n{background:var(--orange);color:#fff}
+
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+  .panel{background:var(--card);border-radius:16px;overflow:hidden}
+  .panel-h{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:600}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--purple-soft);display:grid;place-items:center;font-size:16px}
+  .panel-h small{display:block;font-weight:400;color:var(--grey);font-size:12px}
+
+  .feed{height:380px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--soft);scroll-behavior:smooth}
+  .msg{max-width:82%;padding:10px 14px;border-radius:14px;white-space:pre-line;animation:pop .25s ease-out}
+  .msg .who{display:block;font-size:11.5px;font-weight:600;color:var(--grey);margin-bottom:2px}
+  .msg.in{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.out{align-self:flex-end;background:var(--purple);color:#fff;border-bottom-right-radius:4px}
+  .msg.out .who{color:#E9DDFB}
+  .msg.outx{align-self:flex-end;background:var(--purple-soft);border:1px dashed var(--purple);border-bottom-right-radius:4px}
+  .msg.outx .who{color:var(--purple)}
+  .msg.system{align-self:center;max-width:94%;background:transparent;color:var(--grey);font-size:12.5px;text-align:center;padding:4px 8px;border-radius:8px}
+  .msg.system b{color:var(--ink)}
+  .typing{align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;gap:4px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:#B0BEC5;animation:blink 1s infinite}
+  .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+  @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .decide{padding:16px;border-top:1px solid var(--line)}
+  .q{font-weight:700;margin:0 0 10px;font-size:16px}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;white-space:pre-line;transition:border-color .15s,background .15s}
+  .opt:hover:not(:disabled){border-color:var(--purple);background:var(--purple-soft)}
+  .opt:focus-visible{outline:3px solid var(--purple);outline-offset:2px}
+  .opt:disabled{cursor:default}
+  .opt.wrong{border-color:var(--pink);background:var(--pink-soft);color:#7a0040}
+  .opt.right{border-color:var(--green);background:var(--green-soft)}
+  .opt.dim{opacity:.45}
+  .fb{margin-top:10px;border-radius:12px;padding:12px 14px;font-size:14px;animation:pop .25s ease-out}
+  .fb b{display:block;margin-bottom:2px}
+  .fb.bad{background:var(--pink-soft);border-left:4px solid var(--pink)}
+  .fb.good{background:var(--green-soft);border-left:4px solid var(--green)}
+  .next{margin-top:12px;background:var(--purple);color:#fff;border:0;border-radius:12px;padding:11px 20px;font-weight:600;cursor:pointer}
+  .next:hover{filter:brightness(1.08)}
+  .next:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  .waiting{color:var(--grey);font-size:14px}
+
+  .side{display:flex;flex-direction:column;gap:12px}
+  .rows{padding:6px 16px 12px}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #F0F0F0;font-size:13.5px}
+  .row:last-child{border-bottom:0}
+  .row span{color:var(--grey)}
+  .row b{font-weight:600;text-align:right}
+  .row b.empty{color:#B0BEC5;font-weight:400}
+  .row b.flash{animation:flash 1.2s ease-out}
+  @keyframes flash{0%{background:var(--green)}100%{background:transparent}}
+  .chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:600}
+  .chip.orange{background:var(--orange-soft);color:var(--orange)}
+  .chip.grey{background:#ECEFF1;color:var(--grey)}
+  .chip.green{background:var(--green-soft);color:var(--green-ink)}
+  .tip{background:var(--card);border-radius:16px;padding:14px 16px;font-size:13.5px}
+  .tip h3{margin:0 0 6px;font-size:14px}
+  .tip p{margin:0;color:var(--grey)}
+  .tip.pink{border-left:4px solid var(--pink)}
+
+  .screen{background:var(--card);border-radius:20px;padding:28px;max-width:720px;margin:24px auto;animation:pop .3s ease-out}
+  .screen h2{margin:0 0 10px;font-size:24px;font-weight:800;letter-spacing:-.01em}
+  .screen p{margin:0 0 12px}
+  .screen ul{margin:0 0 16px;padding-left:20px}
+  .screen li{margin:4px 0}
+  .score{display:flex;align-items:center;gap:16px;background:var(--purple-soft);border-radius:14px;padding:14px 16px;margin:12px 0 16px}
+  .score .big{font-size:34px;font-weight:800;color:var(--purple);line-height:1}
+  .res{list-style:none;padding:0;margin:0 0 16px}
+  .res li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F0F0F0}
+  .res .mark{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700}
+  .res .ok{background:var(--green);color:var(--green-ink)}
+  .res .re{background:var(--orange);color:#fff}
+  .note{background:var(--orange-soft);border-left:4px solid var(--orange);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:14px}
+  .hidden{display:none !important}
+
+  @media (max-width:820px){
+    .grid{grid-template-columns:1fr}
+    .side{order:-1}
+    .side .tip{display:none}
+    .steps li .t{display:none}
+    .steps li{justify-content:center}
+    .feed{height:340px}
+    .msg{max-width:92%}
+    .screen{padding:20px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none !important;scroll-behavior:auto !important}}
+.next.back { background:#f4effb;color:#502a75;margin-right:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>Забытая вещь: пишет водитель</h1>
+
+  </div>
+
+  <section class="screen" id="start">
+    <h2>Водитель нашёл вещь</h2>
+    <p>Тебе пишет водитель: после поездки в машине осталась чужая вещь. Помоги вернуть её владельцу. На каждом шаге выбери, что сделаешь. Если ошибёшься, увидишь почему и сможешь выбрать снова.</p>
+    <ul>
+      <li>5 решений, как в реальном обращении</li>
+      <li>в ленте видно и чат с водителем, и сообщения пассажиру</li>
+      <li>справа карточка обращения, она заполняется по ходу работы</li>
+    </ul>
+    <button class="next" id="go">Начать</button>
+  </section>
+
+  <div class="hidden" id="work">
+    <ol class="steps" id="steps"></ol>
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-h"><div class="avatar" aria-hidden="true">🚕</div><div>Обращение водителя<small>Азамат · ID 40215</small></div></div>
+        <div class="feed" id="feed" aria-live="polite"></div>
+        <div class="decide" id="decide"></div>
+      </div>
+      <aside class="side">
+        <div class="panel">
+          <div class="panel-h">Карточка обращения</div>
+          <div class="rows" id="card"></div>
+        </div>
+        <div class="tip pink">
+          <h3>Не называй вещь пассажиру</h3>
+          <p>Попроси его самого описать, что он забыл, и сверь с описанием водителя. Так вещь вернётся владельцу, а не тому, кто угадал.</p>
+        </div>
+        <div class="tip">
+          <h3>Правило часа</h3>
+          <p>С поездки прошло не больше часа: водителя и пассажира можно связать напрямую, если оба согласны. Больше часа: вещь едет в таксопарк в течение 1 дня.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <section class="screen hidden" id="finish"></section>
+</div>
+
+<script>
+/* ===== СЦЕНАРИЙ =====
+   side: in — входящее, out — твой ответ в этом чате, outx — исходящее сообщение, system — событие.
+   Неверные варианты пока гипотетические: заменить на реальные ошибки из топа. */
+const SCENARIO = {
+  card: [
+    { key:'order',   label:'Заказ' },
+    { key:'ended',   label:'Поездка завершена' },
+    { key:'pass',    label:'Пассажир' },
+    { key:'item',    label:'Где вещь' },
+    { key:'ticket',  label:'Заявка в SD' },
+    { key:'match',   label:'Описание пассажира' }
+  ],
+  steps: [
+    {
+      label:'Найди заказ',
+      before:[
+        { side:'system', text:'Новый чат назначен на тебя' },
+        { side:'in', who:'Водитель', text:'Здравствуйте! Сегодня в 09:10 забирал пассажира у гостиницы «Мир». На заднем сиденье остался серый шарф в клетку. Поездка закончилась два часа назад. Куда его деть?' }
+      ],
+      question:'С чего начнёшь?',
+      options:[
+        { text:'Попрошу водителя прислать номер заказа и адрес, куда он вёз пассажира',
+          fb:'Это лишний дозапрос. Водитель назвал время и место подачи, этого хватает, чтобы найти заказ самому.' },
+        { text:'Отвечу, чтобы водитель пока оставил шарф у себя: если пассажир напишет, свяжемся',
+          fb:'Так вещь повиснет у водителя без срока, и никто не будет знать, где она. С поездки прошло больше часа, значит, по процессу вещь едет в таксопарк. Но сначала нужно найти заказ.' },
+        { text:'Найду заказ по времени и месту подачи', correct:true,
+          fb:'Водитель указал время подачи, место посадки и описал вещь. Этого достаточно, чтобы найти заказ без дозапроса.' }
+      ],
+      after:[
+        { side:'system', text:'<b>Заказ найден:</b> №604118, гостиница «Мир» → аэропорт, 09:10–09:48' }
+      ],
+      card:{ order:'№604118', ended:{ text:'2 часа назад', chip:'orange' }, pass:'Ольга', item:{ text:'у водителя', chip:'grey' } }
+    },
+    {
+      label:'Ответь водителю',
+      before:[],
+      question:'Посмотри на карточку. Что ответишь водителю?',
+      options:[
+        { text:'Спасибо, что сообщили! Подождите, пожалуйста, мы свяжемся с пассажиром, и он вам позвонит.',
+          fb:'С поездки прошло 2 часа, это больше часа. Прямой возврат уже не делаем, вещь едет в таксопарк. И номер пассажира без его согласия передавать нельзя.' },
+        { text:'Спасибо, что сообщили! Пожалуйста, передайте шарф в таксопарк в течение одного дня. Когда передадите, напишите нам в этот чат.', correct:true,
+          fb:'Прошло больше часа, поэтому шарф едет в таксопарк. Ты назвал срок и попросил водителя сообщить о передаче: так супервайзер будет знать, где вещь.' },
+        { text:'Спасибо, что сообщили! Отвезите, пожалуйста, шарф в таксопарк, когда будет удобно.',
+          fb:'Нет срока и просьбы сообщить о передаче. Водитель может отложить поездку в парк на неделю, а супервайзер не поймёт, где сейчас шарф. Срок — 1 день.' }
+      ],
+      send:{ side:'out', who:'Ты → водителю' },
+      after:[
+        { side:'in', who:'Водитель', text:'Хорошо, завезу после смены.' }
+      ],
+      card:{ item:{ text:'едет в парк, 1 день', chip:'orange' } }
+    },
+    {
+      label:'Напиши пассажиру',
+      before:[],
+      question:'Теперь напиши пассажиру Ольге исходящее сообщение. Какое отправишь?',
+      options:[
+        { text:'Здравствуйте! После вашей поездки водитель нашёл в машине серый шарф в клетку. Это ваш?',
+          fb:'Ты назвал вещь целиком. Ответить «да, мой» может кто угодно, и шарф уйдёт не владельцу. Пассажир должен описать вещь сам.' },
+        { text:'Здравствуйте! После вашей поездки в машине остался шарф. Подскажите, какого он цвета?',
+          fb:'Слово «шарф» уже подсказка. Не называй даже тип вещи: попроси пассажира самого рассказать, что он забыл.' },
+        { text:'Здравствуйте! После вашей поездки водитель нашёл в автомобиле вещь. Если вы что-то забыли, опишите, пожалуйста, как она выглядит.', correct:true,
+          fb:'Ты сообщил о находке, но не назвал её. Пассажир опишет вещь сам, а ты сверишь его ответ с описанием водителя.' }
+      ],
+      send:{ side:'outx', who:'Исходящее пассажиру' },
+      after:[],
+      card:{}
+    },
+    {
+      label:'Создай заявку',
+      before:[],
+      question:'Пассажир пока не ответил. Что сделаешь с заявкой в Service Desk?',
+      options:[
+        { text:'Подожду с заявкой, пока пассажир не подтвердит, что шарф его',
+          fb:'Заявку создаём сразу. Если пассажир не ответит, по ней будет видно, что вещь в парке, а супервайзер начнёт отсчёт 12 часов. Без заявки обращение потеряется.' },
+        { text:'Создам заявку: заказ 604118, серый шарф в клетку, обратился водитель, ID водителя 40215. Комментарий: «Водитель передаст шарф в парк в течение дня. Написал пассажиру, жду описания»', correct:true,
+          fb:'Все обязательные поля на месте, а в комментарии видно оба действия: что ждём от водителя и что спросили у пассажира.' },
+        { text:'Создам заявку: заказ 604118, серый шарф в клетку, обратился пассажир, ID водителя 40215. Комментарий: «Написал пассажиру»',
+          fb:'Первым обратился водитель, а не пассажир. От этого зависит, по какому сценарию супервайзер ведёт заявку. И в комментарии нет главного: водитель везёт шарф в парк.' }
+      ],
+      after:[
+        { side:'system', text:'<b>Заявка №845 создана</b> в Service Desk' }
+      ],
+      card:{ ticket:{ text:'№845', chip:'green' } }
+    },
+    {
+      label:'Ответ пассажира',
+      before:[
+        { side:'system', text:'Прошло 3 часа. Пассажир ответил, чат назначен на тебя' },
+        { side:'in', who:'Пассажир', text:'Здравствуйте! Да, я забыла в машине серый шарф в клетку. Где его можно забрать?' }
+      ],
+      question:'Описание совпало с тем, что сообщил водитель. Что сделаешь?',
+      options:[
+        { text:'Сразу отправлю пассажиру адрес таксопарка',
+          fb:'Водитель ещё не подтвердил, что передал шарф. Пассажир приедет, а шарфа нет. Адрес отправляет супервайзер, когда передача подтверждена.' },
+        { text:'Добавлю ответ пассажира в заявку №845 и напишу ей, что пришлём адрес, когда водитель передаст шарф в парк', correct:true,
+          fb:'Ответ пассажира теперь есть в заявке, и супервайзер его увидит. Пассажир понимает, чего ждать, и не будет писать повторно.' },
+        { text:'Отвечу, что шарф уже в таксопарке, и закрою заявку',
+          fb:'Шарф пока у водителя, это неправда. И заявку закрывает супервайзер, когда вещь действительно передана.' }
+      ],
+      after:[
+        { side:'out', who:'Ты → пассажиру', text:'Спасибо! Описание совпадает. Водитель передаст шарф в таксопарк в течение дня. Как только он будет там, пришлём вам адрес, где его можно забрать.' },
+        { side:'system', text:'Комментарий «Пассажир подтвердила: серый шарф в клетку» добавлен в заявку №845' }
+      ],
+      card:{ match:{ text:'совпало', chip:'green' } }
+    }
+  ],
+  finale: {
+    title:'Обращение передано супервайзеру',
+    next:'<b>Что дальше.</b> Через 12 часов после сообщения водителю супервайзер проверяет, передал ли он шарф в парк. Когда передача подтверждена, супервайзер отправляет пассажиру адрес таксопарка. Если бы пассажир не ответил за 12 часов, повторно ему не пишем: водитель всё равно везёт вещь в парк, а супервайзер отмечает это в заявке.'
+  }
+};
+
+/* ===== ДВИЖОК ===== */
+const $ = id => document.getElementById(id);
+const feed = $('feed'), decide = $('decide'), stepsEl = $('steps'), cardEl = $('card');
+let cur = 0, firstTry = [], missedThisStep = false, cardValues = {};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function renderSteps(){
+  stepsEl.innerHTML = SCENARIO.steps.map((s,i) => {
+    const cls = i < cur ? 'done' + (firstTry[i] ? '' : ' retry') : (i === cur ? 'now' : '');
+    const mark = i < cur ? (firstTry[i] ? '✓' : '↻') : (i + 1);
+    return `<li class="${cls}"><span class="n">${mark}</span><span class="t">${s.label}</span></li>`;
+  }).join('');
+}
+
+function renderCard(values = {}, fresh = []){
+  cardEl.innerHTML = SCENARIO.card.map(r => {
+    const v = values[r.key];
+    if (!v) return `<div class="row"><span>${r.label}</span><b class="empty">—</b></div>`;
+    const val = typeof v === 'string' ? v : `<span class="chip ${v.chip}">${v.text}</span>`;
+    return `<div class="row"><span>${r.label}</span><b class="${fresh.includes(r.key) ? 'flash' : ''}">${val}</b></div>`;
+  }).join('');
+}
+
+function addMsg(m){
+  const el = document.createElement('div');
+  el.className = 'msg ' + m.side;
+  if (m.side === 'system') el.innerHTML = m.text;
+  else {
+    const who = document.createElement('span');
+    who.className = 'who'; who.textContent = m.who;
+    el.appendChild(who);
+    el.appendChild(document.createTextNode(m.text));
+  }
+  feed.appendChild(el);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+async function playMessages(list){
+  for (const m of list){
+    if (m.side === 'in'){
+      const t = document.createElement('div');
+      t.className = 'typing'; t.innerHTML = '<i></i><i></i><i></i>';
+      feed.appendChild(t); feed.scrollTop = feed.scrollHeight;
+      await sleep(900); t.remove();
+    } else await sleep(350);
+    addMsg(m);
+  }
+}
+
+const visited = [];
+function remember(){
+  visited[cur] = {nodes:Array.from(decide.childNodes), feed:feed.innerHTML, card:{...cardValues}, missed:missedThisStep};
+}
+function restore(){
+  const page = visited[cur];
+  decide.replaceChildren(...page.nodes);
+  feed.innerHTML = page.feed;
+  feed.scrollTop = feed.scrollHeight;
+  cardValues = {...page.card};
+  missedThisStep = page.missed;
+  renderCard(cardValues);
+  renderSteps();
+}
+function back(){
+  if (cur < SCENARIO.steps.length) remember();
+  if (cur === 0){
+    $('work').classList.add('hidden');
+    $('start').classList.remove('hidden');
+    $('go').focus();
+    return;
+  }
+  cur--;
+  $('finish').classList.add('hidden');
+  $('work').classList.remove('hidden');
+  restore();
+  decide.querySelector('.back').focus();
+}
+async function runStep(){
+  if (visited[cur]) { restore(); return; }
+  renderSteps();
+  const s = SCENARIO.steps[cur];
+  missedThisStep = false;
+  decide.innerHTML = '<p class="waiting">…</p>';
+  await playMessages(s.before);
+  decide.innerHTML = `<p class="q">${s.question}</p><div class="opts" role="group"></div><div class="fbslot"></div><button class="next back">← Назад</button>`;
+  decide.querySelector('.back').onclick = back;
+  const opts = decide.querySelector('.opts');
+  s.options.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt'; b.textContent = o.text;
+    b.onclick = () => choose(b, o);
+    opts.appendChild(b);
+  });
+}
+
+function choose(btn, o){
+  const s = SCENARIO.steps[cur];
+  const slot = decide.querySelector('.fbslot');
+  if (!o.correct){
+    missedThisStep = true;
+    btn.classList.add('wrong'); btn.disabled = true;
+    slot.innerHTML = `<div class="fb bad"><b>Не совсем</b>${o.fb}</div>`;
+    return;
+  }
+  decide.querySelectorAll('.opt').forEach(b => { b.disabled = true; if (b !== btn && !b.classList.contains('wrong')) b.classList.add('dim'); });
+  btn.classList.add('right');
+  slot.innerHTML = `<div class="fb good"><b>Верно</b>${o.fb}</div>`;
+  decide.insertAdjacentHTML('beforeend', '<button class="next forward">Дальше</button>');
+  decide.querySelector('.forward').onclick = async () => {
+    remember();
+    firstTry[cur] = !missedThisStep;
+    decide.innerHTML = '<p class="waiting">…</p>';
+    const out = [];
+    if (s.send) out.push({ side:s.send.side, who:s.send.who, text:o.text });
+    out.push(...s.after);
+    await playMessages(out);
+    const fresh = Object.keys(s.card || {});
+    Object.assign(cardValues, s.card || {});
+    renderCard(cardValues, fresh);
+    cur++;
+    if (cur < SCENARIO.steps.length) runStep(); else finish();
+  };
+  decide.querySelector('.forward').focus();
+}
+
+function finish(){
+  renderSteps();
+  const ok = firstTry.filter(Boolean).length, total = SCENARIO.steps.length;
+  const word = ok === total ? 'Отлично, алгоритм собран без ошибок.' : ok >= 3 ? 'Хороший результат. Посмотри шаги, где понадобилась вторая попытка.' : 'Стоит пройти ещё раз и обратить внимание на шаги с повтором.';
+  $('work').classList.add('hidden');
+  const f = $('finish');
+  f.classList.remove('hidden');
+  f.innerHTML = `
+    <h2>${SCENARIO.finale.title}</h2>
+    <div class="score"><div class="big">${ok}/${total}</div><div>шагов с первой попытки.<br>${word}</div></div>
+    <ul class="res">${SCENARIO.steps.map((s,i) => `<li><span class="mark ${firstTry[i] ? 'ok' : 're'}">${firstTry[i] ? '✓' : '↻'}</span><span>${s.label}</span></li>`).join('')}</ul>
+    <div class="note">${SCENARIO.finale.next}</div>
+    <button class="next back">← Назад</button><button class="next" id="again">Пройти ещё раз</button>`;
+  f.querySelector('.back').onclick = back;
+  $('again').onclick = restart;
+  $('again').focus();
+}
+
+function restart(){
+  visited.length = 0;
+  cur = 0; firstTry = []; cardValues = {};
+  feed.innerHTML = '';
+  renderCard();
+  $('finish').classList.add('hidden');
+  $('work').classList.remove('hidden');
+  runStep();
+}
+
+$('go').onclick = () => { $('start').classList.add('hidden'); $('work').classList.remove('hidden'); if (visited[0]) restore(); else restart(); };
+renderCard();
+</script>
+</body>
+</html>
