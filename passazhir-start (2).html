@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Симулятор чата: пишет пассажир</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#E5D6F9; --card:#FFFFFF; --purple:#7F30E3; --purple-soft:#F1E8FD;
+    --ink:#263238; --grey:#455A64; --line:#E0E0E0; --soft:#FAFAFA;
+    --pink:#F90479; --pink-soft:#FFE6F2; --green:#94E330; --green-soft:#EEFBDD; --green-ink:#2F5A00;
+    --orange:#FE5F00; --orange-soft:#FFF0E6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:15px;line-height:1.45}
+  button{font:inherit;color:inherit}
+  .wrap{max-width:1040px;margin:0 auto;padding:20px 16px 28px}
+
+  /* шапка и прогресс */
+  .head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .head h1{margin:0;font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .head .tag{background:var(--purple);color:#fff;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600}
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px;list-style:none;padding:0}
+  .steps li{background:rgba(255,255,255,.55);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--grey);display:flex;gap:8px;align-items:center;min-width:0}
+  .steps li .n{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#fff;font-weight:700;font-size:12px;color:var(--grey)}
+  .steps li .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .steps li.now{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 0 0 2px var(--purple) inset}
+  .steps li.now .n{background:var(--purple);color:#fff}
+  .steps li.done{background:#fff;color:var(--ink)}
+  .steps li.done .n{background:var(--green);color:var(--green-ink)}
+  .steps li.done.retry .n{background:var(--orange);color:#fff}
+
+  /* раскладка */
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+  .panel{background:var(--card);border-radius:16px;overflow:hidden}
+  .panel-h{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);font-weight:600}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--purple-soft);display:grid;place-items:center;font-size:16px}
+  .panel-h small{display:block;font-weight:400;color:var(--grey);font-size:12px}
+
+  /* чат */
+  .feed{height:380px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--soft);scroll-behavior:smooth}
+  .msg{max-width:82%;padding:10px 14px;border-radius:14px;white-space:pre-line;animation:pop .25s ease-out}
+  .msg .who{display:block;font-size:11.5px;font-weight:600;color:var(--grey);margin-bottom:2px}
+  .msg.passenger{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.operator{align-self:flex-end;background:var(--purple);color:#fff;border-bottom-right-radius:4px}
+  .msg.operator .who{color:#E9DDFB}
+  .msg.driver{align-self:flex-end;background:var(--purple-soft);border:1px dashed var(--purple);border-bottom-right-radius:4px}
+  .msg.driver .who{color:var(--purple)}
+  .msg.system{align-self:center;max-width:94%;background:transparent;color:var(--grey);font-size:12.5px;text-align:center;padding:4px 8px;border-radius:8px}
+  .msg.system b{color:var(--ink)}
+  .typing{align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;gap:4px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:#B0BEC5;animation:blink 1s infinite}
+  .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+  @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* выбор */
+  .decide{padding:16px;border-top:1px solid var(--line)}
+  .q{font-weight:700;margin:0 0 10px;font-size:16px}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;white-space:pre-line;transition:border-color .15s,background .15s}
+  .opt:hover:not(:disabled){border-color:var(--purple);background:var(--purple-soft)}
+  .opt:focus-visible{outline:3px solid var(--purple);outline-offset:2px}
+  .opt:disabled{cursor:default}
+  .opt.wrong{border-color:var(--pink);background:var(--pink-soft);color:#7a0040}
+  .opt.right{border-color:var(--green);background:var(--green-soft)}
+  .opt.dim{opacity:.45}
+  .fb{margin-top:10px;border-radius:12px;padding:12px 14px;font-size:14px;animation:pop .25s ease-out}
+  .fb b{display:block;margin-bottom:2px}
+  .fb.bad{background:var(--pink-soft);border-left:4px solid var(--pink)}
+  .fb.good{background:var(--green-soft);border-left:4px solid var(--green)}
+  .next{margin-top:12px;background:var(--purple);color:#fff;border:0;border-radius:12px;padding:11px 20px;font-weight:600;cursor:pointer}
+  .next:hover{filter:brightness(1.08)}
+  .next:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  .waiting{color:var(--grey);font-size:14px}
+
+  /* карточка обращения */
+  .side{display:flex;flex-direction:column;gap:12px}
+  .rows{padding:6px 16px 12px}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #F0F0F0;font-size:13.5px}
+  .row:last-child{border-bottom:0}
+  .row span{color:var(--grey)}
+  .row b{font-weight:600;text-align:right}
+  .row b.empty{color:#B0BEC5;font-weight:400}
+  .row b.flash{animation:flash 1.2s ease-out}
+  @keyframes flash{0%{background:var(--green)}100%{background:transparent}}
+  .chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:600}
+  .chip.orange{background:var(--orange-soft);color:var(--orange)}
+  .chip.grey{background:#ECEFF1;color:var(--grey)}
+  .chip.green{background:var(--green-soft);color:var(--green-ink)}
+  .tip{background:var(--card);border-radius:16px;padding:14px 16px;font-size:13.5px}
+  .tip h3{margin:0 0 6px;font-size:14px}
+  .tip p{margin:0;color:var(--grey)}
+
+  /* старт и финал */
+  .screen{background:var(--card);border-radius:20px;padding:28px;max-width:720px;margin:24px auto;animation:pop .3s ease-out}
+  .screen h2{margin:0 0 10px;font-size:24px;font-weight:800;letter-spacing:-.01em}
+  .screen p{margin:0 0 12px}
+  .screen ul{margin:0 0 16px;padding-left:20px}
+  .screen li{margin:4px 0}
+  .score{display:flex;align-items:center;gap:16px;background:var(--purple-soft);border-radius:14px;padding:14px 16px;margin:12px 0 16px}
+  .score .big{font-size:34px;font-weight:800;color:var(--purple);line-height:1}
+  .res{list-style:none;padding:0;margin:0 0 16px}
+  .res li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F0F0F0}
+  .res .mark{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700}
+  .res .ok{background:var(--green);color:var(--green-ink)}
+  .res .re{background:var(--orange);color:#fff}
+  .note{background:var(--orange-soft);border-left:4px solid var(--orange);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:14px}
+  .hidden{display:none !important}
+
+  @media (max-width:820px){
+    .grid{grid-template-columns:1fr}
+    .side{order:-1}
+    .side .tip{display:none}
+    .steps li .t{display:none}
+    .steps li{justify-content:center}
+    .feed{height:340px}
+    .msg{max-width:92%}
+    .screen{padding:20px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none !important;scroll-behavior:auto !important}}
+#back{background:white;border:1px solid #cfc6da;border-radius:12px;padding:8px 14px;margin-bottom:12px;font:inherit;cursor:pointer}#back:disabled{opacity:.5;cursor:default}.wrap:has(#start:not(.hidden)) #back{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>Забытая вещь: пишет пассажир</h1>
+
+  </div>
+
+  <button type="button" id="back" disabled>← Назад</button>
+  <!-- старт -->
+  <section class="screen" id="start">
+    <h2>Веди диалог самостоятельно</h2>
+    <p>Тебе пишет пассажир, который забыл вещь в машине. На каждом шаге выбери, что будешь делать.</p>
+    <p>Не бойся ошибиться. Даже если сделаешь ошибку, можешь посмотреть, почему она возникла, и попробовать ответить ещё раз.</p>
+    <ul>
+      <li>5 решений, как в реальном обращении</li>
+      <li>справа карточка обращения: заказ, водитель и заявка появляются по ходу работы</li>
+      <li>в конце увидишь, какие шаги получились с первой попытки</li>
+    </ul>
+    <button class="next" id="go">Начать</button>
+  </section>
+
+  <!-- рабочее место -->
+  <div class="hidden" id="work">
+    <ol class="steps" id="steps"></ol>
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-h"><div class="avatar" aria-hidden="true">🧳</div><div>Чат с пассажиром<small>Дмитрий · WB Taxi</small></div></div>
+        <div class="feed" id="feed" aria-live="polite"></div>
+        <div class="decide" id="decide"></div>
+      </div>
+      <aside class="side">
+        <div class="panel">
+          <div class="panel-h">Карточка обращения</div>
+          <div class="rows" id="card"></div>
+        </div>
+        
+      </aside>
+    </div>
+  </div>
+
+  <!-- финал -->
+  <section class="screen hidden" id="finish"></section>
+</div>
+
+<script>
+/* ===== СЦЕНАРИЙ =====
+   Тексты вынесены сюда, чтобы менять варианты без правки вёрстки.
+   Неверные варианты пока гипотетические: заменить на реальные ошибки из топа. */
+const SCENARIO = {
+  card: [
+    { key:'order',   label:'Заказ' },
+    { key:'ended',   label:'Поездка завершена' },
+    { key:'driver',  label:'Водитель' },
+    { key:'status',  label:'Статус водителя' },
+    { key:'ticket',  label:'Заявка в SD' },
+    { key:'consent', label:'Согласие на номер' }
+  ],
+  steps: [
+    {
+      label:'Найди заказ',
+      before:[
+        { type:'system', text:'Новый чат назначен на тебя' },
+        { type:'passenger', text:'Здравствуйте! Кажется, я оставил в машине синий рюкзак. Ехал сегодня около десяти от вокзала до гостиницы «Мир». Можете помочь?' }
+      ],
+      question:'С чего начнёшь?',
+      options:[
+        { text:'Найду заказ: данных для поиска хватает', correct:true,
+          fb:'Пассажир назвал дату, примерное время, обе точки маршрута и описал вещь. Этого достаточно, чтобы найти заказ без дозапроса.' },
+        { text:'Попрошу пассажира прислать номер заказа и точное время поездки',
+          fb:'Это лишний дозапрос. Всё нужное для поиска уже есть в сообщении, а номер заказа ты найдёшь сам. Пассажиру пришлось бы ждать и писать ещё раз.' },
+        { text:'Сразу напишу водителю, а заказ найду потом',
+          fb:'Пока заказ не найден, ты не знаешь, какому водителю писать. Кроме того, водителю нужен номер заказа, чтобы понять, о какой поездке речь.' }
+      ],
+      after:[
+        { type:'system', text:'<b>Заказ найден:</b> №518427, вокзал → гостиница «Мир», 10:02–10:21' }
+      ],
+      card:{ order:'№518427', ended:{ text:'35 минут назад', chip:'orange' }, driver:'Азамат, ID 40215', status:{ text:'не на линии', chip:'grey' } }
+    },
+    {
+      label:'Напиши водителю',
+      before:[],
+      question:'Посмотри на карточку обращения. Что напишешь водителю в исходящем сообщении?',
+      options:[
+        { text:'Здравствуйте! Пассажир забыл в машине синий рюкзак. Проверьте, пожалуйста, салон.',
+          fb:'В сообщении нет номера заказа. За смену у водителя много поездок, без номера он не поймёт, о каком пассажире речь. И ты не спросил, как он готов вернуть вещь.' },
+        { text:'Здравствуйте! По заказу №518427 пассажир забыл синий рюкзак. Если найдёте, отвезите его, пожалуйста, в таксопарк в течение дня.',
+          fb:'С поездки прошло 35 минут, это меньше часа. Сейчас ещё можно договориться о прямом возврате, и пассажир получит вещь быстрее. Сначала спроси, готов ли водитель вернуть рюкзак сам.' },
+        { text:'Здравствуйте! По заказу №518427 пассажир забыл синий рюкзак. Проверьте, пожалуйста, салон. Если рюкзак у вас, готовы ли вы сами вернуть его пассажиру?', correct:true,
+          fb:'Есть номер заказа и описание вещи. С поездки прошло меньше часа, поэтому ты сразу уточнил, готов ли водитель вернуть рюкзак сам.' }
+      ],
+      sendAs:'driver',
+      after:[
+        { type:'system', text:'Водитель не на линии. Ответ может прийти в течение 6 часов' }
+      ],
+      card:{}
+    },
+    {
+      label:'Создай заявку',
+      before:[],
+      question:'Теперь зафиксируй обращение. Что сделаешь?',
+      options:[
+        { text:'Ничего, заявку создаст супервайзер',
+          fb:'Так было раньше. По новому процессу заявку в Service Desk создаёт оператор, который принял обращение. Без неё супервайзер не узнает об обращении и не будет следить за сроками.' },
+        { text:'Создам заявку: номер заказа 518427, синий рюкзак, обратился пассажир, ID водителя 40215. Комментарий: «Написал водителю, он не на линии»', correct:true,
+          fb:'Все обязательные поля заполнены, а из комментария коллега поймёт, что уже сделано и чего ждём.' },
+        { text:'Создам заявку: номер заказа 518427, синий рюкзак. Комментарий: «В работе»',
+          fb:'Не хватает двух обязательных полей: кто обратился и ID водителя. Комментарий «В работе» ничего не объясняет: коллега не поймёт, написали ли водителю.' }
+      ],
+      after:[
+        { type:'system', text:'<b>Заявка №732 создана</b> в Service Desk' }
+      ],
+      card:{ ticket:{ text:'№732', chip:'green' } }
+    },
+    {
+      label:'Ответь пассажиру',
+      before:[],
+      question:'Что ответишь пассажиру?',
+      options:[
+        { text:'Здравствуйте! Спасибо, что написали. Мы уже связались с водителем по поводу синего рюкзака и попросили проверить салон автомобиля. Когда водитель сообщит, удалось ли найти рюкзак после вашей поездки, мы напишем вам в этом чате. Номер вашей заявки — 518427.',
+          fb:'518427 — это номер заказа, а не заявки. Если пассажир напишет повторно и назовёт этот номер как номер заявки, коллеги её не найдут. Кроме того, ты не предупредил, что водитель не на линии, и не спросил согласие на передачу номера.' },
+        { text:'Здравствуйте! Спасибо, что написали. Мы попросили водителя проверить салон. Сейчас он не на линии, но в течение дня он передаст ваш рюкзак в таксопарк. Мы пришлём адрес. Вы согласны, чтобы мы передали ваш номер водителю для связи? Номер вашей заявки — 732.',
+          fb:'Водитель ещё не ответил, и неизвестно, нашёл ли он рюкзак. Нельзя обещать то, чего пока нет: если вещь не найдётся, пассажир будет вдвойне расстроен.' },
+        { text:'Здравствуйте! Спасибо, что написали. Мы попросили водителя проверить салон. Сейчас он не на линии, поэтому ответ может занять больше времени. Напишем, как только будут новости. Если рюкзак найдётся, вы согласны, чтобы мы передали ваш номер водителю? Номер вашей заявки — 732.', correct:true,
+          fb:'Ты сообщил номер заявки, объяснил, почему ответ может занять время, и запросил согласие на передачу номера. Теперь дождись ответа пассажира.' }
+      ],
+      sendAs:'operator',
+      after:[],
+      card:{}
+    },
+    {
+      label:'Повторный чат',
+      before:[
+        { type:'system', text:'Прошло 20 минут. Пассажир ответил, чат снова назначен на тебя' },
+        { type:'passenger', text:'Да, согласен, передавайте номер. А долго ещё ждать?' }
+      ],
+      question:'Что сделаешь?',
+      options:[
+        { text:'Сразу отправлю номер пассажира водителю',
+          fb:'Водитель ещё не ответил, нашёл ли он рюкзак и готов ли вернуть его сам. Номер передают, только когда обе стороны согласны. Это сделает супервайзер после ответа водителя.' },
+        { text:'Создам новую заявку с согласием пассажира',
+          fb:'По этому обращению уже есть заявка №732. Вторая заявка разорвёт историю: супервайзер будет следить за одной, а согласие окажется в другой.' },
+        { text:'Добавлю согласие комментарием в заявку №732 и отвечу пассажиру, что ждём ответа водителя', correct:true,
+          fb:'Ответ пассажира попал к тебе, поэтому ты добавил его в ту же заявку. Теперь супервайзер увидит согласие и сможет передать номер, когда водитель подтвердит, что нашёл рюкзак и готов вернуть его лично.' }
+      ],
+      after:[
+        { type:'operator', text:'Спасибо, записали ваше согласие. Мы написали водителю 20 минут назад. Он был не на линии, поэтому ответ может занять до шести часов с момента нашего сообщения. Как только получим ответ, напишем вам.' },
+        { type:'system', text:'Комментарий «Пассажир согласен на передачу номера» добавлен в заявку №732' }
+      ],
+      card:{ consent:{ text:'есть', chip:'green' } }
+    }
+  ]
+};
+
+/* ===== ДВИЖОК ===== */
+const $ = id => document.getElementById(id);
+const feed = $('feed'), decide = $('decide'), stepsEl = $('steps'), cardEl = $('card');
+const WHO = { passenger:'Пассажир', operator:'Ты', driver:'Исходящее водителю' };
+let cur = 0, firstTry = [], missedThisStep = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function renderSteps(){
+  stepsEl.innerHTML = SCENARIO.steps.map((s,i) => {
+    let cls = i < cur ? 'done' + (firstTry[i] ? '' : ' retry') : (i === cur ? 'now' : '');
+    let mark = i < cur ? (firstTry[i] ? '✓' : '↻') : (i + 1);
+    return `<li class="${cls}"><span class="n">${mark}</span><span class="t">${i < cur ? s.label : "Шаг " + (i + 1)}</span></li>`;
+  }).join('');
+}
+
+function renderCard(values = {}, fresh = []){
+  cardEl.innerHTML = SCENARIO.card.map(r => {
+    const v = values[r.key];
+    if (!v) return `<div class="row"><span>${r.label}</span><b class="empty">—</b></div>`;
+    const val = typeof v === 'string' ? v : `<span class="chip ${v.chip}">${v.text}</span>`;
+    return `<div class="row"><span>${r.label}</span><b class="${fresh.includes(r.key) ? 'flash' : ''}">${val}</b></div>`;
+  }).join('');
+}
+let cardValues = {};
+
+function addMsg(m){
+  const el = document.createElement('div');
+  el.className = 'msg ' + m.type;
+  if (m.type === 'system') el.innerHTML = m.text;
+  else {
+    const who = document.createElement('span');
+    who.className = 'who'; who.textContent = WHO[m.type];
+    el.appendChild(who);
+    el.appendChild(document.createTextNode(m.text));
+  }
+  feed.appendChild(el);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+async function playMessages(list){
+  for (const m of list){
+    if (m.type === 'passenger'){
+      const t = document.createElement('div');
+      t.className = 'typing'; t.innerHTML = '<i></i><i></i><i></i>';
+      feed.appendChild(t); feed.scrollTop = feed.scrollHeight;
+      await sleep(900); t.remove();
+    } else await sleep(350);
+    addMsg(m);
+  }
+}
+
+const savedSteps = new Map();
+function remember(){
+  savedSteps.set(cur, { nodes: Array.from(decide.childNodes), chat: feed.innerHTML, card: cardEl.innerHTML, missed: missedThisStep });
+}
+function restore(index){
+  cur = index;
+  const saved = savedSteps.get(index);
+  decide.replaceChildren(...saved.nodes);
+  feed.innerHTML = saved.chat;
+  feed.scrollTop = feed.scrollHeight;
+  cardEl.innerHTML = saved.card;
+  missedThisStep = saved.missed;
+  renderSteps();
+  $('back').disabled = false;
+}
+$('back').onclick = () => {
+  if (!$('finish').classList.contains('hidden')){
+    $('finish').classList.add('hidden'); $('work').classList.remove('hidden');
+    restore(SCENARIO.steps.length); return;
+  }
+  remember();
+  if(cur > 0){restore(cur - 1);return;}
+  $('work').classList.add('hidden'); $('start').classList.remove('hidden'); $('back').disabled=true;
+};
+async function runStep(){
+  $('back').disabled=true;
+  renderSteps();
+  const s = SCENARIO.steps[cur];
+  missedThisStep = false;
+  decide.innerHTML = '<p class="waiting">…</p>';
+  await playMessages(s.before);
+  decide.innerHTML = `<p class="q">${s.question}</p><div class="opts" role="group"></div><div class="fbslot"></div>`;
+  $('back').disabled=false;
+  const opts = decide.querySelector('.opts');
+  s.options.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt'; b.textContent = o.text;
+    b.onclick = () => choose(b, o);
+    opts.appendChild(b);
+  });
+}
+
+function choose(btn, o){
+  const s = SCENARIO.steps[cur];
+  const slot = decide.querySelector('.fbslot');
+  if (!o.correct){
+    missedThisStep = true;
+    btn.classList.add('wrong'); btn.disabled = true;
+    slot.innerHTML = `<div class="fb bad"><b>Не совсем</b>${o.fb}</div>`;
+    return;
+  }
+  decide.querySelectorAll('.opt').forEach(b => { b.disabled = true; if (b !== btn && !b.classList.contains('wrong')) b.classList.add('dim'); });
+  btn.classList.add('right');
+  slot.innerHTML = `<div class="fb good"><b>Верно</b>${o.fb}</div><button class="next">Дальше</button>`;
+  slot.querySelector('.next').onclick = async () => {
+    remember();
+    if(savedSteps.has(cur+1)){restore(cur+1);return;}
+    $('back').disabled=true;
+    firstTry[cur] = !missedThisStep;
+    decide.innerHTML = '<p class="waiting">…</p>';
+    const out = [];
+    if (s.sendAs) out.push({ type:s.sendAs, text:o.text });
+    out.push(...s.after);
+    await playMessages(out);
+    const fresh = Object.keys(s.card || {});
+    Object.assign(cardValues, s.card || {});
+    renderCard(cardValues, fresh);
+    cur++;
+    if (cur < SCENARIO.steps.length) runStep(); else {
+      decide.innerHTML = '<button class="next">Посмотреть результат</button>';
+      $('back').disabled=false;
+      decide.querySelector('button').onclick = () => {remember();finish()};
+    }
+  };
+  slot.querySelector('.next').focus();
+}
+
+function finish(){
+  renderSteps();
+  const ok = firstTry.filter(Boolean).length, total = SCENARIO.steps.length;
+  const word = ok === total ? 'Отлично, алгоритм собран без ошибок.' : ok >= 3 ? 'Хороший результат. Посмотри шаги, где понадобилась вторая попытка.' : 'Стоит пройти ещё раз и обратить внимание на шаги с повтором.';
+  $('work').classList.add('hidden');
+  const f = $('finish');
+  f.classList.remove('hidden');
+  f.innerHTML = `
+    <h2>Обращение передано супервайзеру</h2>
+    <div class="score"><div class="big">${ok}/${total}</div><div>шагов с первой попытки.<br>${word}</div></div>
+    <ul class="res">${SCENARIO.steps.map((s,i) => `<li><span class="mark ${firstTry[i] ? 'ok' : 're'}">${firstTry[i] ? '✓' : '↻'}</span><span>${s.label}</span></li>`).join('')}</ul>
+    <div class="note"><b>Что дальше.</b> Супервайзер ждёт ответа водителя: до 1 часа, если он на линии, и до 6 часов, если нет. Если водитель нашёл рюкзак и готов вернуть его сам, супервайзер передаст ему номер пассажира. Если не готов, водитель отвезёт рюкзак в таксопарк в течение 1 дня.</div>
+    <button class="next" id="again">Пройти ещё раз</button>`;
+  $('again').onclick = restart;
+  $('again').focus();
+}
+
+function restart(){
+  savedSteps.clear();cur = 0; firstTry = []; cardValues = {};
+  feed.innerHTML = '';
+  renderCard();
+  $('finish').classList.add('hidden');
+  $('work').classList.remove('hidden');
+  runStep();
+}
+
+$('go').onclick = () => { $('start').classList.add('hidden'); $('work').classList.remove('hidden'); if(savedSteps.has(0))restore(0);else restart(); };
+renderCard();
+</script>
+</body>
+</html>
