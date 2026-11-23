@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Заявка в Service Desk: тренажёр</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#E5D6F9; --card:#FFFFFF; --purple:#7F30E3; --purple-soft:#F1E8FD;
+    --ink:#263238; --grey:#455A64; --line:#E0E0E0; --soft:#FAFAFA;
+    --pink:#F90479; --pink-soft:#FFE6F2; --green:#94E330; --green-soft:#EEFBDD; --green-ink:#2F5A00;
+    --orange:#FE5F00; --orange-soft:#FFF0E6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:15px;line-height:1.45}
+  button,select{font:inherit;color:inherit}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px 16px 28px}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .head h1{margin:0;font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .tag{background:var(--purple);color:#fff;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600}
+  .lead{margin:0 0 14px;color:var(--grey)}
+
+  .grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+  .panel{background:var(--card);border-radius:16px;overflow:hidden}
+  .panel-h{padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .panel-h small{font-weight:600;color:var(--grey);font-size:12.5px}
+  .pad{padding:14px 16px}
+
+  /* ситуация */
+  .bubble{background:var(--soft);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:10px 12px;font-size:14px;margin-bottom:10px}
+  .bubble small{display:block;font-size:11px;font-weight:700;color:var(--grey);margin-bottom:2px;text-transform:uppercase;letter-spacing:.03em}
+  .bubble.out{background:var(--purple-soft);border:1px dashed var(--purple);border-radius:12px 12px 4px 12px}
+  .bubble.out small{color:var(--purple)}
+  .sys{font-size:12.5px;color:var(--grey);margin:4px 0 12px}
+  .data{width:100%;border-collapse:collapse;font-size:13.5px}
+  .data td{padding:7px 0;border-bottom:1px solid #F0F0F0;vertical-align:top}
+  .data td:first-child{color:var(--grey);padding-right:10px}
+  .data td:last-child{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .data tr:last-child td{border-bottom:0}
+  .data-h{font-size:12px;font-weight:700;color:var(--grey);text-transform:uppercase;letter-spacing:.03em;margin:14px 0 4px}
+
+  /* форма */
+  .form{padding:6px 16px 16px}
+  .field{padding:12px 0;border-bottom:1px solid #F0F0F0}
+  .field:last-of-type{border-bottom:0}
+  .field label,.field .lbl{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+  .req{color:var(--pink)}
+  select{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;background:#fff;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23455A64' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+  select:focus-visible{outline:3px solid var(--purple);outline-offset:1px}
+  .radios{display:flex;flex-direction:column;gap:6px}
+  .radio{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer;font-size:14px}
+  .radio input{margin-top:3px;accent-color:var(--purple)}
+  .radio:has(input:checked){border-color:var(--purple);background:var(--purple-soft)}
+  .field.ok select,.field.ok .radio:has(input:checked){border-color:var(--green);background-color:var(--green-soft)}
+  .field.bad select,.field.bad .radio:has(input:checked){border-color:var(--pink);background-color:var(--pink-soft)}
+  .msg{font-size:13px;margin-top:6px;border-radius:8px;padding:7px 10px;display:none}
+  .field.bad .msg{display:block;background:var(--pink-soft);color:#7a0040}
+  .field.ok .msg{display:block;background:var(--green-soft);color:var(--green-ink)}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+  .btn{background:var(--purple);color:#fff;border:0;border-radius:12px;padding:11px 20px;font-weight:600;cursor:pointer}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  .btn.ghost{background:#fff;color:var(--purple);border:1.5px solid var(--purple)}
+  .status{font-size:13.5px;color:var(--grey)}
+  .done{background:var(--green-soft);border-left:4px solid var(--green);border-radius:12px;padding:12px 14px;margin-top:14px;font-size:14px;animation:pop .25s ease-out}
+  .done b{display:block;margin-bottom:2px}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .screen{background:var(--card);border-radius:20px;padding:28px;max-width:680px;margin:20px auto;animation:pop .3s ease-out}
+  .screen h2{margin:0 0 10px;font-size:24px;font-weight:800}
+  .screen p{margin:0 0 12px}
+  .score{display:flex;align-items:center;gap:16px;background:var(--purple-soft);border-radius:14px;padding:14px 16px;margin:12px 0 16px}
+  .score .big{font-size:34px;font-weight:800;color:var(--purple);line-height:1}
+  .memo{border:1.5px solid var(--purple);border-radius:14px;padding:14px 16px;margin-bottom:16px}
+  .memo h3{margin:0 0 8px;font-size:15px}
+  .memo ul{margin:0;padding-left:18px}
+  .memo li{margin:4px 0}
+  .hidden{display:none !important}
+
+  @media (max-width:820px){
+    .grid{grid-template-columns:1fr}
+    .screen{padding:20px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none !important}}
+.topics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.topic{background:white;border:1px solid #cabbe0;border-radius:12px;padding:18px 12px;text-align:left;font:inherit;cursor:pointer}.topic:hover,.topic:focus-visible{background:#f1eafa}.topics p{grid-column:1/-1;margin:0}
+  .conversation{margin-bottom:12px;border:1px solid #dedce8;border-radius:12px;overflow:hidden}
+  .conversation header{padding:10px 12px;background:white;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px}
+  .conversation header small{font-size:12px;color:#9a176d;background:#fcebf7;border-radius:5px;padding:3px 7px}
+  .transcript{padding:14px 10px;background:linear-gradient(155deg,#d0f6f4,#e9d7f6);display:grid;gap:10px}
+  .transcript .bubble{width:fit-content;max-width:90%;margin:0;background:#fafafa;border:0}
+  .transcript .bubble.out{justify-self:end;background:#fbeafa;border:0}
+  .transcript .bubble small{text-transform:none;color:#51495c;letter-spacing:0}
+#trip{background:#f2f3f5;border-radius:16px;padding:16px;margin:14px 0}#trip .data-h{margin:0 0 7px}#trip td{border-bottom-color:#dce0e4}.topic.wrong,.topic.wrong:hover,.topic.wrong:focus-visible{background:#ffe6ef;border-color:#d61460;color:#951044;box-shadow:inset 0 0 0 1px #d61460}#hint:not(:empty){padding:10px 14px;background:#fff0f5;color:#951044;border-left:4px solid #d61460;border-radius:6px;font-weight:600}#work > #trip{margin:0}[hidden]{display:none!important}#work.single{grid-template-columns:minmax(0,760px);justify-content:center}</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>Заполни заявку в Service Desk</h1>
+    <span class="tag" id="counter">Ситуация 1 из 2</span>
+  </div>
+  <p class="lead">Прочитай обращение, выбери подходящую тему в каталоге WB Taxi и заполни учебную форму.</p>
+
+  <div id="work" class="grid">
+    <div class="panel" id="chatPanel">
+      <div class="panel-h">Обращение</div>
+      <div class="pad" id="case"></div><div class="pad actions"><button id="previousCase" class="btn ghost" hidden>← Назад</button><button class="btn" id="openDesk">Перейти в Service Desk</button></div>
+    </div>
+    <div>
+      <div id="catalog" class="panel"><div class="panel-h">WB Taxi · Выбери тему обращения</div><div class="form topics"><button class="topic">Жалобы на парки</button><button class="topic">Корректировки заказов</button><button class="topic" data-lost>Забытые вещи</button><button class="topic">Техническая поддержка</button><p id="hint" aria-live="polite"></p></div><div class="pad"><button class="btn ghost" id="backChat">← Назад</button></div></div>
+      <section id="trip" aria-label="Данные из Таксоконтроля"></section>
+      <div id="entry" class="panel" hidden><div class="panel-h">Новая заявка · Забытые вещи <small><span class="req">*</span> обязательные поля</small></div>
+      <div class="form" id="form"></div></div>
+    </div>
+  </div>
+
+  <section class="screen hidden" id="finish"></section>
+</div>
+
+<script>
+/* ===== СИТУАЦИИ =====
+   Поля формы условные: когда будет скрин SD2, привести названия и порядок к реальной форме. */
+const CASES = [
+  {
+    chat:[
+      { thread:'Пассажир', side:'in', who:'Пассажир', text:'Здравствуйте! Кажется, я оставил в машине зелёный термос. Ехал сегодня около десяти от вокзала до гостиницы «Мир».' },
+      { thread:'Водитель', side:'out', who:'Оператор, 10:40', text:'Здравствуйте!\n\nПо заказу №518427 пассажир забыл зелёный термос. Проверьте, пожалуйста, салон. Если термос у вас, готовы ли вы сами вернуть его пассажиру?' }
+    ],
+    sys:'Водитель не на линии',
+    data:[ ['Номер заказа','518427'], ['Номер чата','99120'], ['ID пассажира','77310'], ['ID водителя','40215'], ['Поездка','10:02–10:21'] ],
+    ticket:'732',
+    fields:[
+      { id:'order', label:'Номер заказа', type:'select', options:['99120','518427','77310'], answer:'518427',
+        bad:'Это не номер заказа. По номеру заказа супервайзер найдёт поездку, водителя и пассажира.', ok:'Верно, номер заказа из Таксоконтроля.' },
+      { id:'item', label:'Описание вещи', type:'select', options:['Забытая вещь','Термос','Зелёный термос'], answer:'Зелёный термос',
+        bad:'Опиши вещь так, как её описал пассажир, вместе с приметами. По описанию её ищут, если пассажир или водитель напишут позже.', ok:'Верно, с цветом вещь проще найти и опознать.' },
+      { id:'who', label:'Кто обратился', type:'select', options:['Пассажир','Водитель'], answer:'Пассажир',
+        bad:'Первым написал пассажир. От этого зависит, по какой ветке супервайзер ведёт заявку.', ok:'Верно, первым написал пассажир.' },
+      { id:'driver', label:'ID водителя', type:'select', options:['77310','518427','40215'], answer:'40215',
+        bad:'Это не ID водителя. По ID водителя супервайзер проверяет его ответ в чате и при необходимости блокирует.', ok:'Верно, ID водителя из карточки заказа.' },
+      { id:'comment', label:'Комментарий', type:'radio', options:['В работе','Написал водителю в 10:40, он не на линии. Ждём ответа','См. чат'], answer:'Написал водителю в 10:40, он не на линии. Ждём ответа',
+        bad:'Из такого комментария коллега не поймёт, что уже сделано. Напиши, кому и когда ты написал и чего ждём.', ok:'Верно, коллега поймёт ситуацию без чата.' }
+    ]
+  },
+  {
+    chat:[
+      { thread:'Водитель', side:'in', who:'Водитель', text:'Здравствуйте! В 09:10 забирал пассажира у гостиницы «Мир». На заднем сиденье остался ежедневник в красной обложке. Поездка закончилась два часа назад.' },
+      { thread:'Водитель', side:'out', who:'Оператор', text:'Здравствуйте!\n\nСпасибо, что сообщили! Пожалуйста, передайте ежедневник в таксопарк в течение одного дня. Когда передадите, напишите нам.' },
+      { thread:'Пассажир', side:'out', who:'Оператор', text:'Здравствуйте!\n\nПосле вашей поездки водитель нашёл в автомобиле вещь. Если вы что-то забыли, опишите, пожалуйста, как она выглядит.' }
+    ],
+    sys:'Пассажир пока не ответил',
+    data:[ ['Номер заказа','604118'], ['Номер чата','99187'], ['ID пассажира','81022'], ['ID водителя','40215'], ['Поездка','09:10–09:48'] ],
+    ticket:'845',
+    fields:[
+      { id:'order', label:'Номер заказа', type:'select', options:['604118','81022','99187'], answer:'604118',
+        bad:'Это не номер заказа. Проверь строку «Номер заказа» в данных слева.', ok:'Верно.' },
+      { id:'item', label:'Описание вещи', type:'select', options:['Ежедневник','Ежедневник в красной обложке','Вещь, описание уточняется у пассажира'], answer:'Ежедневник в красной обложке',
+        bad:'В заявку пиши описание водителя полностью. Пассажиру вещь не называем, а в заявке приметы нужны, чтобы сверить его ответ.', ok:'Верно, с этим описанием супервайзер сверит ответ пассажира.' },
+      { id:'who', label:'Кто обратился', type:'select', options:['Пассажир','Водитель'], answer:'Водитель',
+        bad:'Первым написал водитель. Супервайзер поведёт заявку по ветке водителя: 12 часов на ответ пассажира, потом вещь в парк.', ok:'Верно, первым написал водитель.' },
+      { id:'driver', label:'ID водителя', type:'select', options:['81022','40215','604118'], answer:'40215',
+        bad:'Это не ID водителя. 81022 — ID пассажира, 604118 — номер заказа.', ok:'Верно.' },
+      { id:'comment', label:'Комментарий', type:'radio', options:['Написал пассажиру','Ежедневник в таксопарке, пассажиру сообщили','Водитель передаст ежедневник в парк в течение дня. Написал пассажиру, жду описания'], answer:'Водитель передаст ежедневник в парк в течение дня. Написал пассажиру, жду описания',
+        bad:'Комментарий неполный или неточный. Нужны оба действия: что ждём от водителя и что спросили у пассажира. И не пиши, что вещь в парке, пока это не подтверждено.', ok:'Верно, видно оба действия и чего ждём.' }
+    ]
+  }
+];
+
+const cities = ['Минск','Брест','Гродно','Могилёв','Ташкент','Самарканд','Бухара','Наманган','Андижан','Фергана','Бишкек','Ереван'];
+CASES.forEach((c,index) => {
+  const city = ['Ташкент','Минск'][index];
+  c.data.unshift(['Город',city]);
+  c.fields.unshift({id:'city',label:'Город',type:'select',options:cities,answer:city,bad:'Сверь город с данными поездки в Таксоконтроле.',ok:'Город совпадает с данными поездки.'});
+});
+/* ===== ЛОГИКА ===== */
+const $ = id => document.getElementById(id);
+let idx = 0, tries = 0, firstTry = [];
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+const completedForms = new Map();
+const drafts = new Map();
+$('work').prepend($('trip'));
+const lead = document.querySelector('.lead');
+function showPage(page){
+  const formPage = page === 'form';
+  $('work').classList.toggle('single', !formPage);
+  $('chatPanel').hidden = page !== 'chat';
+  $('catalog').hidden = page !== 'catalog';
+  $('catalog').parentElement.hidden = page === 'chat';
+  $('trip').hidden = !formPage;
+  $('entry').hidden = !formPage;
+  $('previousCase').hidden = idx === 0;
+  lead.textContent = {
+    chat:'Прочитай переписку и обрати внимание, кто сообщил о вещи и что уже сделал оператор.',
+    catalog:'Ты в Service Desk. Выбери тему обращения в каталоге WB Taxi.',
+    form:'Заполни заявку по данным поездки и сведениям из переписки.'
+  }[page];
+  window.scrollTo(0,0);
+}
+$('openDesk').onclick = () => { showPage('catalog'); $('catalog').querySelector('button').focus(); };
+$('backChat').onclick = () => { showPage('chat'); $('openDesk').focus(); };
+function revisit(index){
+  idx = index;
+  render();
+  showPage('form');
+  $('nextBtn').focus();
+}
+$('previousCase').onclick = () => {
+  drafts.set(idx, {nodes:Array.from($('form').childNodes), tries});
+  revisit(idx - 1);
+};
+function render(){
+  const c = CASES[idx];
+  tries = 0;
+  lead.hidden = false;
+  showPage('chat');
+  $('hint').textContent = '';
+  $('catalog').querySelectorAll('.topic').forEach(el => el.classList.remove('wrong'));
+  $('counter').textContent = `Ситуация ${idx + 1} из ${CASES.length}`;
+  $('case').innerHTML =
+    [...new Set(c.chat.map(m => m.thread))].map(thread => {
+      const messages = c.chat.filter(m => m.thread === thread).map(m =>
+        `<div class="bubble ${m.side === 'out' ? 'out' : ''}"><small>${esc(m.who)}</small>${esc(m.text).replace(/\n/g,'<br>')}</div>`
+      ).join('');
+      return `<section class="conversation"><header><strong>WB Такси · ${thread}</strong><small>У вас в работе</small></header><div class="transcript">${messages}</div></section>`;
+    }).join('') +
+    `<div class="sys">${c.sys}</div>`;
+  $('trip').innerHTML =
+    `<div class="data-h">Данные из Таксоконтроля</div>` +
+    `<table class="data">${c.data.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>`;
+
+  if (completedForms.has(idx)){
+    $('form').replaceChildren(...completedForms.get(idx));
+    return;
+  }
+  if (drafts.has(idx)){
+    const draft = drafts.get(idx);
+    $('form').replaceChildren(...draft.nodes);
+    tries = draft.tries;
+    return;
+  }
+  $('form').innerHTML = c.fields.map(f => {
+    let input;
+    if (f.type === 'select'){
+      input = `<select id="f-${f.id}"><option value="">Выбери…</option>${f.options.map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
+      return `<div class="field" data-id="${f.id}"><label for="f-${f.id}">${f.label} <span class="req">*</span></label>${input}<div class="msg"></div></div>`;
+    }
+    input = `<div class="radios" role="radiogroup" aria-label="${f.label}">${f.options.map((o,i) => `<label class="radio"><input type="radio" name="f-${f.id}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div>`;
+    return `<div class="field" data-id="${f.id}"><span class="lbl">${f.label} <span class="req">*</span></span>${input}<div class="msg"></div></div>`;
+  }).join('') + `<div class="actions"><button class="btn ghost" data-back>← Назад</button><button class="btn" id="submit">Создать заявку</button><span class="status" id="status"></span></div><div id="result"></div>`;
+
+  $('form').querySelectorAll('select,input').forEach(el => el.addEventListener('change', () => {
+    el.closest('.field').classList.remove('ok','bad');
+  }));
+  $('submit').onclick = check;
+}
+
+function valueOf(f){
+  if (f.type === 'select') return $('f-' + f.id).value;
+  const r = document.querySelector(`input[name="f-${f.id}"]:checked`);
+  return r ? r.value : '';
+}
+
+function check(){
+  const c = CASES[idx];
+  let empty = 0, wrong = 0;
+  c.fields.forEach(f => {
+    const el = document.querySelector(`.field[data-id="${f.id}"]`), msg = el.querySelector('.msg');
+    const v = valueOf(f);
+    el.classList.remove('ok','bad');
+    if (!v){ empty++; el.classList.add('bad'); msg.textContent = 'Обязательное поле. Без него заявку не создать.'; return; }
+    if (v === f.answer){ el.classList.add('ok'); msg.textContent = f.ok; }
+    else { wrong++; el.classList.add('bad'); msg.textContent = f.bad; }
+  });
+  tries++;
+  const status = $('status');
+  if (empty || wrong){
+    status.textContent = empty ? `Не заполнено полей: ${empty}` : `Ошибок: ${wrong}. Исправь подсвеченные поля`;
+    return;
+  }
+  firstTry[idx] = tries === 1;
+  status.textContent = '';
+  $('submit').disabled = true;
+  $('form').querySelectorAll('select,input').forEach(el => el.disabled = true);
+  const last = idx === CASES.length - 1;
+  $('result').innerHTML = `<div class="done"><b>Заявка №${c.ticket} создана</b>${tries === 1 ? 'С первой попытки, отлично.' : 'Теперь все поля заполнены верно.'}</div>
+    <div class="actions"><button class="btn" id="nextBtn">${last ? 'Завершить' : 'Следующая ситуация'}</button></div>`;
+  completedForms.set(idx, Array.from($('form').childNodes));
+  $('nextBtn').onclick = () => { if (last) finish(); else { idx++; render(); window.scrollTo({top:0,behavior:'smooth'}); } };
+  $('nextBtn').focus();
+}
+
+function finish(){
+  lead.hidden = true;
+  const ok = firstTry.filter(Boolean).length;
+  $('work').classList.add('hidden');
+  $('counter').textContent = 'Готово';
+  const f = $('finish');
+  f.classList.remove('hidden');
+  f.innerHTML = `
+    <h2>Заявки созданы</h2>
+    <div class="score"><div class="big">${ok}/${CASES.length}</div><div>заявок с первой попытки</div></div>
+    <div class="memo">
+      <h3>Запомни: обязательные поля</h3>
+      <ul>
+        <li><b>Номер заказа</b> — не номер чата и не ID пассажира</li>
+        <li><b>Описание вещи</b> — с приметами, как описал тот, кто обратился</li>
+        <li><b>Кто обратился</b> — пассажир или водитель, кто написал первым</li>
+        <li><b>ID водителя</b> — из карточки заказа</li>
+        <li><b>Комментарий</b> — кому и что ты написал и чего ждём</li>
+      </ul>
+    </div>
+    <p>Заявка — это память обращения. Пиши в ней так, чтобы коллега понял ситуацию без чата.</p>
+    <button class="btn ghost" id="backFinish">← Назад</button> <button class="btn ghost" id="again">Пройти ещё раз</button>`;
+  $('backFinish').onclick = () => { f.classList.add('hidden'); $('work').classList.remove('hidden'); revisit(idx); };
+  $('again').onclick = () => { completedForms.clear(); drafts.clear(); idx = 0; firstTry = []; f.classList.add('hidden'); $('work').classList.remove('hidden'); render(); };
+}
+
+$('form').addEventListener('click', event => {
+  if (event.target.closest('[data-back]')) {
+    showPage('catalog');
+    $('catalog').querySelector('[data-lost]').focus();
+  }
+});
+$('catalog').addEventListener('click', event => {
+  const button = event.target.closest('.topic');
+  if (!button) return;
+  if (!button.hasAttribute('data-lost')) {
+    $('catalog').querySelectorAll('.topic').forEach(el => el.classList.toggle('wrong', el === button));
+    $('hint').textContent = 'Неверная тема. Прочитай обращение ещё раз и выбери другую тему.';
+    return;
+  }
+  showPage('form');
+  ($('nextBtn') || $('f-city')).focus();
+});
+render();
+</script>
+</body>
+</html>
