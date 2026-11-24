@@ -1,0 +1,123 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Итоговая практика · Забытые вещи</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eee5fb;color:#25333b;font:17px/1.5 system-ui,sans-serif}main{max-width:800px;margin:auto;padding:clamp(14px,4vw,40px)}article{background:white;border-radius:20px;padding:clamp(18px,4vw,36px)}h1{font-size:clamp(23px,4vw,32px);margin:0 0 18px}h2{margin:4px 0 18px;font-size:23px}small{color:#62556d}blockquote{white-space:pre-line;margin:0;padding:16px 20px;background:#f4effb;border-radius:14px}blockquote b{display:block;font-size:14px;margin-bottom:5px}label{display:block;font-weight:700;margin:18px 0 8px}textarea{width:100%;min-height:125px;border:1px solid #998ba9;border-radius:12px;padding:12px;font:inherit;color:inherit}button{border:1px solid #7131bf;border-radius:10px;background:#7131bf;color:white;padding:10px 18px;font:inherit;cursor:pointer}.back{background:white;color:#582690}nav{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button:focus-visible,textarea:focus-visible{outline:3px solid #aa76e3;outline-offset:2px}.feedback{white-space:pre-line;padding:14px;border-radius:12px;margin-top:12px;background:#ffecf3;color:#81153e}.good{background:#eaf7dc;color:#305322}[hidden]{display:none}
+.context{background:#f3f4f6;border-radius:10px;padding:12px 16px;margin-bottom:16px}.context b,.chat-head strong{display:block}.chat{border:1px solid #dcd9e4;border-radius:14px;overflow:hidden}.chat-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px}.status{color:#952465;background:#fbeaf6;border-radius:6px;padding:3px 8px;font-size:13px}.thread{padding:16px;background:linear-gradient(145deg,#d4f4f1,#eadcf7)}.thread blockquote{background:white;max-width:85%;border-radius:12px 12px 12px 3px;overflow-wrap:anywhere}.compose{padding:12px 16px}.compose label{margin-top:0}.compose textarea{display:block}.sent{white-space:pre-wrap;overflow-wrap:anywhere;background:#fdebf8;border-radius:12px 12px 3px 12px;padding:10px 14px;margin:12px 0 0 auto;max-width:85%}.sent b{display:block;font-size:14px}#example{margin-top:12px}#example div{margin-top:8px;white-space:pre-line}</style><main><h1>Итоговая практика</h1><article id="panel"></article></main>
+<script>
+const cases=[
+ {title:'Две поездки за вечер',message:'Здравствуйте!\n\nВчера у меня было две поездки. Пропала папка с документами. Прикладываю оба скриншота. В какой машине её оставила, не помню.',context:'Оба заказа удалось найти в Таксоконтроле по скриншотам.',prompt:'Что сделаешь дальше?'},
+ {title:'Пассажир ждёт новостей',message:'Здравствуйте! Я вчера писала про фотоаппарат. Заявка № 732. Уже можно его забрать?',context:'Последний комментарий в заявке: «Водитель нашёл фотоаппарат. Попросили передать его в таксопарк». Подтверждения передачи пока нет.',prompt:'Что ответишь пассажиру?'}];
+function check(index,raw){
+ const t=raw.toLowerCase().replaceAll('ё','е').replace(/\s+/g,' ').trim();
+ if(!t)return 'Сначала введи ответ.';
+ const greeting = /^(?:здравствуйте|добрый (?:день|вечер)|доброе утро|приветствуем(?: вас)?)(?![а-я])/u.test(t);
+ if(index===0){
+ const words = t.replace(/[^а-яa-z0-9]+/g, ' ').trim();
+ const approvedReply = 'здравствуйте мы уже связались с водителем и уточняем информацию по вашему заказу как только получим ответ сразу вернемся к вам постараемся помочь как можно быстрее';
+ if(words === approvedReply) return '';
+
+ const hints = [];
+ if(!greeting){
+   hints.push(/^привет(?![а-я])/u.test(t)
+     ? 'Приветствие есть. В чате поддержки замени «привет» на «Здравствуйте!».'
+     : 'Начни с приветствия, например «Здравствуйте!».');
+ }
+ if(!/(?:спасибо|благодар\p{L}*)[^.!?]{0,85}(?:скрин|сним|изображени|фото|информац|сведени|подробност|данн|сообщ|написал|уточнен|прислал|отправил|прикрепил|приложил|поделил)/u.test(t)){
+   hints.push('Поблагодари пассажира за информацию или скриншоты.');
+ }
+ const mentionsDriver = /водител|шофер/.test(t);
+ const bothDrivers = /обоим|обоих|обоими|обеих|обе поездки|обоим заказам|кажд(?:ому|ым|ого|ой)|двум|двух|двое|в оба чата|и первому,? и второму|первому и второму|водител(?:ям|ями|ей) (?:по этим|из этих|этих|обеих|из двух|двух) (?:поезд|заказ)|водител(?:ям|ями|ей) (?:по|из) двух/.test(t);
+ const contacts = /напиш|напис|пиш|письм|свяж|связ|попрош|попрос|отправ|запрошу|обращусь|обратим|поговор|позвон|перезвон|уточн|спрош/.test(t) && !/не (?:буду писать|напишу|свяжусь|стану писать)/.test(t);
+ if(!mentionsDriver || !bothDrivers || !contacts){
+   hints.push(mentionsDriver
+     ? 'В ответе уже есть упоминание водителя. Уточни, что нужно связаться с водителями обеих поездок.'
+     : 'Укажи, что свяжешься с водителями обеих поездок.');
+ }
+ if(!/папк|документ|потерянн(?:ую|ая) вещ|пропавш(?:ую|ая) вещ/.test(t)||!/провер|посмотр|осмотр|загляну|поиск|остал|остав|забы|нашл|наход|на[ий]д|нашел|поищ|есть ли|не видел/.test(t)){
+   hints.push('Добавь, о чём попросишь водителей: проверить, не осталась ли в автомобиле папка с документами.');
+ }
+ return hints.join('\n\n');
+ }
+ const hints = [];
+ const statements = t.split(/[.!?;…]+/);
+ const premature = statements.some(statement => {
+   const available = /(?:уже можно|можете|можно уже|теперь можно|приезжайте|забирайте)\s*(?:приехать|забрать|забирать|ехать)?|(?:фотоаппарат|камера|вещь)\s+(?:уже\s+)?в\s+(?:таксо)?парке|(?:водитель|фотоаппарат|камера|вещь)\s+(?:уже\s+)?(?:передал[аи]?|передан[ао]?|отвез[ли]*|доставил[аи]?)/.test(statement);
+   return available && !/(?:^|\s)(?:если|когда|пока|после|еще не|не подтверд|не можем|уточняем|ждем)(?![а-я])/.test(statement);
+ });
+ if(premature)hints.push('Передачу пока не подтвердили. Проверь, не предлагаешь ли ты пассажиру ехать за фотоаппаратом раньше времени.');
+ if(!greeting)hints.push('Начни сообщение с приветствия.');
+ if(!/извин|простите|прошу прощения|приносим? (?:наши )?извинения/.test(t))hints.push('Пассажир ждёт со вчерашнего дня. Извинись за ожидание.');
+ if(/(?:свяжемся|свяжусь|уточним|узнаем)/.test(t) && /(?:удобно|удобнее|когда сможет)[^.!?]{0,40}передать/.test(t))hints.push('Водителя уже попросили передать фотоаппарат в таксопарк. Уточнять, когда ему удобно это сделать, в ответе пассажиру не нужно.');
+ const found = statements.some(statement =>
+   /наш(?:ел|ли|лась|ся|ла)|найден|отыск|обнаруж|(?:остался|осталась|сейчас|пока) у водителя/.test(statement)
+   && !/не\s+(?:наш|найден|отыск|обнаруж)|если\s+[^,]*?(?:найд|обнаруж|отыщ)/.test(statement)
+ );
+ if(/папк[ауиеой]? с документ|обо(?:им|их|ими) водител|водител\p{L}* обеих поездок/u.test(t)){
+   hints.push('Этот ответ относится к первой ситуации. В заявке № 732 речь о фотоаппарате: водитель уже нашёл его, но передачу в таксопарк пока не подтвердил.');
+ } else if(!found){
+   hints.push('Сообщи подтверждённую новость: водитель нашёл фотоаппарат.');
+ }
+ const givesLocation = /адрес|куда (?:можно |нужно )?(?:приехать|подъехать|обратиться)|где (?:можно |нужно )?забрать|место выдачи|точку выдачи/.test(t);
+ const waitsForTransfer = /(?:когда|после|как только|едва|по факту|дождемся|ждем|как|если)[^.!?]{0,110}(?:переда|подтвер|достав|отвез|привез|окажется|поступ|попадет|будет в (?:таксо)?парке|будет на месте|доедет|завез)|(?:придет|получим|поступит)\s+подтверждение|(?:передач[ау]|доставку)\s+(?:пока\s+)?не\s+подтвердил/.test(t);
+ if(!givesLocation||!waitsForTransfer)hints.push('Поясни, когда пассажир получит адрес таксопарка.');
+ return hints.join('\n\n');
+}
+function languageFeedback(raw){
+ const rules = [
+  [/з[д]?раствуйте|здраствуйт[еэ]|здравствуйтее|извените|пажалуйста|фотоапарат/iu, 'Орфография', word => 'Проверь написание «'+word+'». Правильно: «'+(/изв/i.test(word.toLowerCase())?'извините':/паж/i.test(word.toLowerCase())?'пожалуйста':/фото/i.test(word.toLowerCase())?'фотоаппарат':'здравствуйте')+'».'],
+  [/(?:он|водитель)\s+связаться\s+с вами/iu, 'Грамматика', () => 'О действии водителя в будущем напиши «свяжется с вами».'],
+  [/спасибо за (?:понимания|терпения)|за понимание и терпения/iu, 'Грамматика', () => 'После «спасибо за» нужны формы «понимание» и «терпение».'],
+  [/спасибо\s+что/iu, 'Пунктуация', () => 'Поставь запятую перед «что»: «Спасибо, что…».'],
+  [/(?:как только|когда)\s+(?:мы\s+)?получим ответ\s+(?:сразу\s+)?(?:напишем|сообщим|верн[её]мся)|(?:как только|когда) водитель подтвердит передачу\s+(?:мы\s+)?(?:пришл[её]м|сообщим|напишем)/iu, 'Пунктуация', () => 'Отдели условие от основной части предложения запятой.'],
+  [/если у вас будут вопросы\s+пишите/iu, 'Пунктуация', () => 'После «Если у вас будут вопросы» нужна запятая.']
+ ];
+ const notes=[];
+ for(const [pattern,label,hint] of rules){
+  const match=raw.match(pattern);
+  if(match) notes.push(label+'. '+hint(match[0]));
+ }
+ if(raw.trim() && !/[.!?…][»”")]*$/u.test(raw.trim())) notes.push('Пунктуация. Добавь знак в конце последнего предложения.');
+ return notes;
+}
+
+const replyExamples = [
+ 'Здравствуйте!\n\nСпасибо за скриншоты. Напишем обоим водителям и попросим каждого проверить, не осталась ли в автомобиле ваша папка с документами.\n\nКак только появятся новости, напишем вам.',
+ 'Здравствуйте!\n\nПростите, что пришлось ждать. Водитель нашёл ваш фотоаппарат. Мы попросили передать его в таксопарк. Как только водитель подтвердит передачу, пришлём адрес.'
+];
+let page=0;
+const state=cases.map(()=>({text:'',ok:false,note:''}));
+const panel=document.querySelector('#panel');
+function render(){
+ if(page===cases.length){
+ panel.innerHTML='<h2 tabindex="-1">Практика завершена</h2><p>Обе ситуации пройдены.</p><nav><button class="back">← Назад</button><button id="again">Пройти ещё раз</button></nav>';
+ panel.querySelector('.back').onclick=()=>{page--;render()};
+ panel.querySelector('#again').onclick=()=>{state.forEach(s=>Object.assign(s,{text:"",ok:false,note:""}));page=0;render()};panel.querySelector('h2').focus();return;
+ }
+ const c=cases[page],s=state[page];
+ panel.innerHTML=`<small>Ситуация ${page+1} из 2</small><h2 tabindex="-1">${c.title}</h2>
+ <aside class="context"><b>${page===0?'Таксоконтроль':'Service Desk · Заявка № 732'}</b>${c.context}</aside>
+ <section class="chat"><header class="chat-head"><strong>WB Такси · Пассажир</strong><span class="status">У вас в работе</span></header>
+ <div class="thread"><blockquote><b>Пассажир</b>${c.message}</blockquote><div class="sent" hidden><b>Оператор</b><span></span></div></div>
+ <div class="compose"><label for="reply">${c.prompt}</label><textarea id="reply" placeholder="Написать ответ…"></textarea></div></section>
+ <div id="note" role="status"></div><aside class="context" id="example" hidden><b>Как можно ответить</b><div></div></aside><nav></nav>`;
+ const input=panel.querySelector('textarea'), note=panel.querySelector('#note'),nav=panel.querySelector('nav');
+ input.value=s.text;
+ function feedback(){note.textContent=s.note;note.className=s.note?'feedback'+(s.ok?' good':''):''}
+ function action(label,handler,secondary=false){const b=document.createElement('button');b.textContent=label;b.onclick=handler;if(secondary)b.className='back';nav.append(b);return b}
+ if(page)action('← Назад',()=>{page--;render()},true);
+ const verify=action('Проверить',()=>{const meaning=check(page,input.value);
+ const hints=languageFeedback(input.value);
+ const error=[meaning,...hints].filter(Boolean).join('\n\n');s.ok=!error;s.note=error||'Верно.';update()});
+ const next=action(page===0?'Дальше':'Завершить',()=>{page++;render()});
+ function update(){
+   const sent=panel.querySelector('.sent');
+   sent.hidden=!s.ok;
+   sent.querySelector('span').textContent=s.text;
+   panel.querySelector('.compose').hidden=s.ok;
+   const example=panel.querySelector('#example');
+   example.hidden=!s.note||!s.text.trim();
+   example.querySelector('div').textContent=replyExamples[page];
+   feedback();next.hidden=!s.ok;verify.hidden=s.ok}
+ input.oninput=()=>{s.text=input.value;s.ok=false;s.note='';update()};update();panel.querySelector('h2').focus();
+}
+render();
+</script></html>
