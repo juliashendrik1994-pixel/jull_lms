@@ -1,0 +1,80 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Заполни заявку по ДТП</title>
+<style>*{box-sizing:border-box}body{margin:auto;max-width:1100px;padding:24px;background:#e5d6f9;color:#263238;font:16px/1.45 system-ui}h1{font-size:26px;margin:0}h2{font-size:20px;margin:0 0 16px}main{display:grid;grid-template-columns:minmax(240px,2fr) 3fr;gap:16px;align-items:start}article,form{background:white;padding:22px;border-radius:16px}blockquote{margin:8px 0 20px;padding:12px;background:#f5effd;border-radius:10px}label{display:block;font-weight:650;margin-top:14px}input,select,textarea{width:100%;font:inherit;border:1px solid #897d97;border-radius:8px;padding:10px}textarea{min-height:82px}button{background:#7526c9;color:white;border:0;padding:12px 18px;font:inherit;border-radius:9px;cursor:pointer;margin-top:14px}input[type=checkbox]{width:auto}small{color:#704337}#review{padding:14px;background:#f4effa;border-radius:9px;margin-top:16px}[aria-invalid=true]{border:2px solid #ae2456}@media(max-width:720px){main{grid-template-columns:1fr}body{padding:12px}}#status:not(:empty){background:#f1ebfb;padding:12px;border-radius:8px;font-weight:600}small:not(:empty){display:block;padding:5px 0;color:#92384c}</style>
+<div id="exercise"><h1>Заполни заявку по ДТП</h1><p>Прочитай переписку, сверь данные поездки и заполни учебную форму.</p><main><article><h2>Карточка поездки</h2>Минск · 11.11.2026, 14:10<br>Заказ № 456556 · Чат № 10482<br>ID водителя 54545<br>Поездка завершена.<hr><h2>Переписка</h2><b>Пассажир · 14:34</b><blockquote>Во время поездки мы попали в аварию. Я уже вышел из машины. Поездка закончилась раньше, чем я планировал.</blockquote><b>Оператор → водитель · 14:38</b><blockquote>Здравствуйте! Пассажир сообщил о ДТП во время поездки. Расскажите, пожалуйста, что произошло.</blockquote>На момент создания заявки водитель ещё не ответил.</article>
+<form id="ticket" novalidate><h2>Заявка в Service Desk</h2><div id="fields"></div><label for="pass">Описание — версия пассажира</label><textarea id="pass" required aria-describedby="pass-hint"></textarea><small id="pass-hint" aria-live="polite"></small><label for="driver">Описание — версия водителя</label><textarea id="driver" required aria-describedby="driver-hint"></textarea><small id="driver-hint" aria-live="polite"></small><button type="submit" id="check">Проверить заявку</button><p id="status" role="status"></p><section id="review" hidden><h2>Сверь описания</h2><b>Версия пассажира</b><p>Пассажир сообщил о ДТП. Он вышел из машины, поездка закончилась раньше, чем он планировал.</p><b>Версия водителя</b><p>В 14:38 водителю отправили запрос. Ответ пока не поступил.</p><button type="button" id="finish">Создать заявку</button></section></form></main></div><article id="receipt" hidden><h1 tabindex="-1" id="receipt-title">Учебная заявка № 732 создана</h1><p>Если по этой поездке появятся новые сведения, добавь их в заявку № 732.</p><button type="button" id="restart">Пройти ещё раз</button></article>
+<script>
+const by=id=>document.getElementById(id);
+const data=[['city','Город','Минск','Сверь город с карточкой поездки.'],['order','Номер заказа','456556','Проверь номер заказа. Рядом указан номер чата.'],['idriver','ID водителя','54545','Возьми ID водителя из карточки поездки.'],['reason','Причина','ДТП','Пассажир сообщил об аварии. Выбери причину, которая описывает само происшествие.']];
+for(const [id,title] of data){by('fields').insertAdjacentHTML('beforeend','<label for="'+id+'">'+title+'</label><input required id="'+id+'" aria-describedby="'+id+'-hint"><small id="'+id+'-hint"></small>')}
+const citySelect = document.createElement('select');
+citySelect.id = 'city';
+citySelect.required = true;
+citySelect.setAttribute('aria-describedby', 'city-hint');
+citySelect.innerHTML = '<option value="">Выбери город</option><option>Минск</option><option>Брест</option><option>Гродно</option><option>Могилёв</option><option>Ташкент</option><option>Самарканд</option><option>Бухара</option><option>Наманган</option><option>Андижан</option><option>Фергана</option><option>Бишкек</option><option>Ош</option><option>Ереван</option>';
+by('city').replaceWith(citySelect);
+const reasonSelect = document.createElement('select');
+reasonSelect.id = 'reason';
+reasonSelect.required = true;
+reasonSelect.setAttribute('aria-describedby', 'reason-hint');
+reasonSelect.add(new Option('Не выбрано', ''));
+for (const reason of ["Поездка не состоялась", "Аннулировать тестовый заказ", "Неполная поездка", "Время ожидания", "Не завершил заказ на конечном адресе", "Некорректный расчёт стоимости заказа", "Баг", "Жалоба на водителя/сервис", "Другое", "Двойная оплата", "ДТП"]) reasonSelect.add(new Option(reason, reason));
+by('reason').replaceWith(reasonSelect);
+// Проверяем целые слова, включая распространённые словоформы.
+const profanityPatterns = [
+  /^(?:на|по|ни|до)?ху(?:й|я|ю|ем|е|и|ев|ями|ях|ево|евый|евая|евое|евые)$/,
+  /^бля(?:ть|дь|ди|дей|дям|дями|дях|дина|дский|дская)?$/,
+  /^(?:рас|про|до|на)?пизд(?:а|ы|е|у|ой|ец|еть|ит|ят|ил|ила|или|еж|юк|юки|атый)$/,
+  /^(?:за|на|про|до|от|вы|пере|разъ|подъ|съ)?еб(?:ать|аться|ал|ала|али|ало|аный|аная|аные|аное|ануть|анул|анула|анутый|ет|ут|ись|ался|алась|ались|ешь|учий|учая|учее|учие|лан|ланы)$/,
+  /^(?:за|про|на|вы|съ)?ебл(?:я|и|ан|аны|о)$/,
+];
+function feedback(id, value) {
+  const text = value.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+  if (!text) return 'Заполни поле по переписке.';
+  const words = text.match(/\p{L}+/gu) || [];
+  if (words.some(word => profanityPatterns.some(pattern => pattern.test(word)))) {
+    return 'Переформулируй описание нейтрально и сохрани факты из переписки.';
+  }
+  if (id === 'pass') {
+    if (/не (?:было|произошло) (?:дтп|аварии)|(?:дтп|аварии) не было|водитель виноват|по вине водителя/.test(text))
+      return 'Сверь запись с сообщением пассажира. Он сообщил об аварии. О виновнике в переписке сведений нет.';
+    if (!/дтп|авари|столкнов|столкнул|дорожно-транспортн/.test(text))
+      return 'Укажи, что произошло во время поездки, со слов пассажира.';
+    if (!/выш[еёл]|вышла|покинул|покинула|раньше|досрочн|прерва|не доехал/.test(text))
+      return 'Добавь, что пассажир рассказал о завершении поездки.';
+    return '';
+  }
+  if (/^(?:нет информации|нет данных)[.!]?$/.test(text)) return 'Уточни, когда оператор написал водителю и поступил ли ответ.';
+  if (/(?:водитель|он)\s+(?:уже\s+)?(?:подтвердил|отказался|признал|опроверг|сообщил|ответил)(?!\s+не)|получен(?:о)? подтверждение/.test(text))
+    return 'Проверь переписку. В ней есть только сообщение оператора водителю. Ответ водителя пока не поступил.';
+  if (!/(?:написа|запрос|отправ|направ|обратил|связа|уточн|сообщени.{0,18}водител)/.test(text))
+    return 'Укажи, как оператор запросил комментарий водителя.';
+  if (!/(?:14[:.ч ]\s*38)/.test(text))
+    return 'Добавь время запроса. Оно указано рядом с сообщением оператора.';
+  if (!/без ответа|(?:не|нет)\s+(?:было\s+)?ответ|не (?:дал|получ|поступ|приш|приход|отвеч|предостав)|ответ\S*\s+(?:(?:еще|пока)\s+)*(?:нет|отсутств)|(?:жд[еу]|ожида)\S*\s+ответ|молчит|обратной связи нет/.test(text))
+    return 'Укажи, поступил ли ответ водителя к моменту создания заявки.';
+  return '';
+}
+
+function resetReview(){by('review').hidden=true;by('status').textContent=''}
+by('ticket').oninput=e=>{resetReview();if(by(e.target.id+'-hint')){by(e.target.id+'-hint').textContent='';e.target.removeAttribute('aria-invalid')}};
+by('ticket').onsubmit=e=>{e.preventDefault();resetReview();const issues = [];for(const [id,title,value,hint] of data){const el=by(id),ok=el.value.trim().toLowerCase()===value.toLowerCase();el.setAttribute('aria-invalid',String(!ok));by(id+'-hint').textContent=ok?'':hint;if(!ok) issues.push(id === 'idriver' ? title : title.toLowerCase())}for (const id of ['pass','driver']) {
+  const field = by(id);
+  const hint = feedback(id, field.value);
+  by(id+'-hint').textContent = hint;
+  field.setAttribute('aria-invalid', String(Boolean(hint)));
+  if (hint) issues.push(id === 'pass' ? 'версия пассажира' : 'версия водителя');
+}
+if (issues.length) {
+  by('status').textContent = 'Проверь следующие поля: ' + issues.join(', ') + '. Под каждым полем есть подсказка.';
+  return;
+}
+by('status').textContent = 'Данные проверены. Сверь описания с образцом ниже.';
+by('review').hidden=false;by('review').scrollIntoView({block:'center'})};
+by('finish').onclick = () => {
+  if (by('review').hidden) return;
+  by('exercise').hidden = true;
+  by('receipt').hidden = false;
+  by('receipt-title').focus();
+};
+by('restart').onclick = () => location.reload();
+</script></html>
